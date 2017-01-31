@@ -3,13 +3,22 @@
   <groupId>org.lappsgrid</groupId>
   <artifactId>pi1-yuany2</artifactId>
   <version>0.0.1-SNAPSHOT</version>
-  <dependencyManagement>
-  	<dependencies>
-  		<dependency>
-  			<groupId>orgs.lapps</groupId>
-  			<artifactId>all</artifactId>
-  			<version>2.3.1</version>
-  		</dependency>
-  	</dependencies>
-  </dependencyManagement>
+  <packaging>war</packaging>
+  <parent>
+        <artifactId>war-parent-pom</artifactId>
+        <groupId>org.lappsgrid.maven</groupId>
+        <version>2.0.5</version>
+  </parent>
+  <dependencies>
+  	<dependency>
+  		<groupId>org.lappsgrid</groupId>
+  		<artifactId>all</artifactId>
+  		<version>2.3.1</version>
+  	</dependency>
+  	<dependency>
+  		<groupId>junit</groupId>
+  		<artifactId>junit</artifactId>
+  		<version>4.10</version>
+  	</dependency>
+  </dependencies>
 </project>
