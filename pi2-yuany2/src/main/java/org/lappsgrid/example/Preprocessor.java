@@ -1,5 +1,8 @@
 package org.lappsgrid.example;
 
+import org.apache.axis.transport.jms.InvokeTimeoutException;
+import org.codehaus.groovy.classgen.ReturnAdder;
+import org.codehaus.groovy.transform.PackageScopeASTTransformation;
 import org.lappsgrid.api.ProcessingService;
 import static org.lappsgrid.discriminator.Discriminators.Uri;
 import org.lappsgrid.serialization.Data;
@@ -9,6 +12,10 @@ import org.lappsgrid.serialization.lif.Annotation;
 import org.lappsgrid.serialization.lif.Container;
 import org.lappsgrid.serialization.lif.View;
 import org.lappsgrid.vocabulary.Features;
+
+import ch.qos.logback.core.subst.Token;
+import jp.go.nict.langrid.commons.transformer.ArrayToArrayTransformer;
+
 // additional API for metadata
 import org.lappsgrid.metadata.IOSpecification;
 import org.lappsgrid.metadata.ServiceMetadata;
@@ -112,25 +119,22 @@ public class Preprocessor implements ProcessingService {
       return new Data<String>(Uri.ERROR, message).asJson();
     }
 
-    // Step #4: Create a new View
     View view = container.newView();
-
-    // Step #5: Identify the question and answer
     String filepath = container.getText(); // read the filepath
     Scanner scanner;
-    ArrayList<ArrayList<Integer>> triples = null;
+    String line=null;
+    
     try {
       scanner = new Scanner(new FileReader(filepath));
       if (scanner.hasNext()) { // only read one line
-        String line = scanner.nextLine();
-        triples = new ArrayList<ArrayList<Integer>>();
-        // TODO scan through line and create triples <start, end, isCorrect> for question and each
-        // answer (question appears at the first and isCorrect field is left empty)
+        line = scanner.nextLine();        
       }
     } catch (FileNotFoundException e) {
       e.printStackTrace();
     }
-
+    
+    ArrayList<ArrayList<Integer>> triples = find_triples(line);
+    
     if (triples != null && triples.size() > 1) {
       int id = 0;
       for (ArrayList<Integer> triple : triples) {
@@ -142,14 +146,74 @@ public class Preprocessor implements ProcessingService {
 
     }
 
-    // Step #6: Update the view's metadata. Each view contains metadata about the
-    // annotations it contains, in particular the name of the tool that produced the
-    // annotations.
     view.addContains(Uri.SENTENCE, this.getClass().getName(), "qa_sentences");
-    // Step #7: Create a DataContainer with the result.
     data = new DataContainer(container);
-    // Step #8: Serialize the data object and return the JSON.
+    
     return data.asPrettyJson();
+  }
+
+  /**
+   * scan through line and create triples <start, end, isCorrect> for question and each; answer
+   * (question appears at the first and isCorrect field is left empty)
+   * 
+   * @param line input string
+   * @return the list of the triples found
+   */
+  private ArrayList<ArrayList<Integer>> find_triples(String line) {
+    
+    if (line == null) return null;
+    
+    ArrayList<ArrayList<Integer>> triples = new ArrayList<ArrayList<Integer>>();    
+    int ptr = 0;
+    int len = line.length();
+    ArrayList<Integer> triple = new ArrayList<>();
+
+    assert line.substring(0, 1).equals("Q");
+    ptr += 1; // move to first char in Q
+    triple.add(ptr); // add start
+    while (!line.substring(ptr + 1, next_token(line, ptr)).matches("A\\d")) {
+      ptr = next_token(line, ptr);
+    }
+    triple.add(ptr); // add end
+    triple.add(-1); // placeholder
+    triples.add(triple);
+
+    // now ptr points to the space before A1
+    while (ptr < len) {
+      triple = new ArrayList<>();
+      ptr = next_token(line, ptr);
+      triple.add(ptr + 1);
+      int isCorrect = Integer.parseInt(line.substring(ptr + 1, next_token(line, ptr)));
+      while (!(ptr + 1 >= line.length())
+              && !line.substring(ptr + 1, next_token(line, ptr)).matches("A\\d")) {
+        ptr = next_token(line, ptr);
+      }
+      triple.add(ptr);
+      triple.add(isCorrect);
+      triples.add(triple);
+    }
+
+    return triples;
+  }
+
+  private int next_token(String line, int ptr) {
+
+    if (ptr + 1 == line.length())
+      return ptr + 1;
+
+    if (line.substring(ptr, ptr + 1).equals(" ")) {
+      ptr++;
+      if (ptr + 1 == line.length())
+        return ptr + 1;
+    }
+
+    while (!line.substring(ptr, ptr + 1).equals(" ")) {
+      ptr++;
+      if (ptr + 1 == line.length())
+        return ptr + 1;
+    }
+
+    return ptr;
   }
 
   /**

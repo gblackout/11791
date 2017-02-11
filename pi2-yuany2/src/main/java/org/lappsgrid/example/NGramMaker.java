@@ -30,8 +30,11 @@ public class NGramMaker implements ProcessingService {
    */
   private String metadata;
 
-  public NGramMaker() {
+  private int ngrams;
+
+  public NGramMaker(int ngrams) {
     metadata = generateMetadata();
+    this.ngrams = ngrams;
   }
 
   /**
@@ -115,7 +118,7 @@ public class NGramMaker implements ProcessingService {
     List<Annotation> annotations = views.get(1).getAnnotations(); // annotations of the 2nd view
     int id = 0;
     int length = annotations.size();
-    for (int i = 1; i < 4; i++) {
+    for (int i = 1; i < this.ngrams + 1; i++) {
       for (int j = 0; j < length; j++) {
         if (j + i - 1 >= length) {
           continue;
@@ -125,8 +128,8 @@ public class NGramMaker implements ProcessingService {
         if (head.getFeature(Stats.STATS1).equals(tail.getFeature(Stats.STATS1))) {
           // here start and end denote the indices in 2nd view
           Annotation ann = ngramView.newAnnotation(i + "gram" + id, Uri.TOKEN, j, j + i - 1);
-          ann.addFeature(Stats.STATS1, head.getFeature(Stats.STATS1)); // add feature indicating the
-                                                                       // answer/question id
+          // add feature indicating the answer/question id: -1 for q, and 0-n for a
+          ann.addFeature(Stats.STATS1, head.getFeature(Stats.STATS1));
           ann.addFeature(Stats.STATS2, i + ""); // add feature indicating which gram it is
           id++;
         }

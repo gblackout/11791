@@ -32,7 +32,7 @@ public abstract class Pipeline {
 		return input.asJson();
 	}
 	
-	private void setOutput(String jsonText)
+	protected void setOutput(String jsonText)
 	{
 		output = jsonText;
 	}

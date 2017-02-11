@@ -9,9 +9,18 @@ import org.lappsgrid.serialization.Serializer;
 import org.lappsgrid.serialization.lif.Annotation;
 import org.lappsgrid.serialization.lif.Container;
 import org.lappsgrid.serialization.lif.View;
+
+import groovyjarjarasm.asm.tree.IntInsnNode;
+
 // additional API for metadata
 import org.lappsgrid.metadata.IOSpecification;
 import org.lappsgrid.metadata.ServiceMetadata;
+
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
@@ -29,11 +38,11 @@ public class Scorer implements ProcessingService {
    */
   private String metadata;
 
-  private Random rand;
+  private int ngrams;
 
-  public Scorer() {
+  public Scorer(int ngrams) {
     metadata = generateMetadata();
-    rand = new Random();
+    this.ngrams = ngrams;
   }
 
   /**
@@ -114,11 +123,14 @@ public class Scorer implements ProcessingService {
 
     // get the ngram view
     View ngramView = container.getView(2);
+    // get the token view
+    View tokenView = container.getView(1);
     // get the qa view
     View qaView = container.getView(0);
+    String text = container.getText();
 
     for (Annotation ann : qaView.getAnnotations()) {
-      ann.addFeature(Stats.STATS2, this.getScore(ann.getId(), ngramView) + "");
+      ann.addFeature(Stats.STATS2, this.getScore(ann.getId(), ngramView, tokenView, text) + "");
     }
 
     // Step #7: Create a DataContainer with the result.
@@ -128,8 +140,8 @@ public class Scorer implements ProcessingService {
   }
 
   /**
-   * function that returns score of an answer given ngram; currently it's just a place holder
-   * need to distinguish if it's question; if it is then return negative score
+   * function that returns score of an answer given ngram; currently it's just a place holder need
+   * to distinguish if it's question; if it is then return negative score
    * 
    * @param id
    *          String id of the answer to be scored
@@ -137,7 +149,69 @@ public class Scorer implements ProcessingService {
    *          view produced by NGramMaker
    * @return the score of the answer
    */
-  private double getScore(String id, View ngramView) {
-    return this.rand.nextDouble();
+  private double getScore(String id, View ngramView, View tokenView, String text) {
+    List<Annotation> ngramanns = ngramView.getAnnotations();
+    List<Annotation> tokenanns = tokenView.getAnnotations();
+
+    HashSet<String> target = new HashSet<>();
+    HashSet<String> answer = new HashSet<>();
+    HashSet<String> union = new HashSet<>();
+
+    target = prepNGram("-1", ngramanns, tokenanns, text);
+    answer = prepNGram(id, ngramanns, tokenanns, text);
+    union.addAll(target);
+    union.addAll(answer);
+
+    Iterator iter = target.iterator();
+    double n = 0;
+    while (iter.hasNext()) {
+      String gram = (String) iter.next();
+      if (answer.contains(gram))
+        n++;
+    }
+
+    return n / union.size();
   }
+
+  /**
+   * This prepares the ngram hashset for a given id which can be -1 (indicating the question) and
+   * 0-n (which is the answer id)
+   * 
+   * @param id
+   *          the id of the question/answer from which we collect the ngram
+   * @param anns
+   *          list of annotations in ngram view
+   * @param tokenanns
+   *          list of annotations in token view
+   * @param text
+   *          original text
+   * @return hashset of the ngrams
+   */
+  private HashSet<String> prepNGram(String id, List<Annotation> anns, List<Annotation> tokenanns,
+          String text) {
+    HashSet<String> set = new HashSet<>();
+
+    for (Annotation ann : anns) {
+      String gram_id = ann.getFeature(Stats.STATS1);
+
+      if (gram_id.equals("-1"))
+        gram_id = "q";
+      else
+        gram_id = "a" + gram_id;
+
+      if (gram_id.equals(id)) {
+        String tmp = "";
+        for (int i = ann.getStart().intValue(); i <= ann.getEnd(); i++) {
+          Annotation tokenann = tokenanns.get(i);
+          if (tmp.length() > 0)
+            tmp = tmp + " ";
+          tmp = tmp + text.substring(tokenann.getStart().intValue(), tokenann.getEnd().intValue());
+        }
+        set.add(tmp);
+      }
+    }
+
+    return set;
+  }
+
 }
