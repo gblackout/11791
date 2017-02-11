@@ -128,8 +128,8 @@ public class Scorer implements ProcessingService {
   }
 
   /**
-   * TODO function that returns score of an answer given ngram; currently it's just a place holder
-   * TODO need to distinguish if it's question; if it is then return negative score
+   * function that returns score of an answer given ngram; currently it's just a place holder
+   * need to distinguish if it's question; if it is then return negative score
    * 
    * @param id
    *          String id of the answer to be scored
