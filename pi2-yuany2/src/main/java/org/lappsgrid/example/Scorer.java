@@ -131,7 +131,13 @@ public class Scorer implements ProcessingService {
 
     for (Annotation ann : qaView.getAnnotations()) {
       ann.addFeature(Stats.STATS2, this.getScore(ann.getId(), ngramView, tokenView, text) + "");
+      ann.addFeature(Stats.NAME, this.getClass().getName());
+      ann.addFeature(Stats.CONFSCORE, "1");
     }
+
+    // a hack by copying the view 0 to a new view, since in-place modification is somehow not
+    // working
+    container.addView(qaView);
 
     // Step #7: Create a DataContainer with the result.
     data = new DataContainer(container);
@@ -150,6 +156,10 @@ public class Scorer implements ProcessingService {
    * @return the score of the answer
    */
   private double getScore(String id, View ngramView, View tokenView, String text) {
+
+    if (id.equals("q"))
+      return -1.0;
+
     List<Annotation> ngramanns = ngramView.getAnnotations();
     List<Annotation> tokenanns = tokenView.getAnnotations();
 
@@ -157,7 +167,7 @@ public class Scorer implements ProcessingService {
     HashSet<String> answer = new HashSet<>();
     HashSet<String> union = new HashSet<>();
 
-    target = prepNGram("-1", ngramanns, tokenanns, text);
+    target = prepNGram("q", ngramanns, tokenanns, text);
     answer = prepNGram(id, ngramanns, tokenanns, text);
     union.addAll(target);
     union.addAll(answer);
@@ -205,7 +215,8 @@ public class Scorer implements ProcessingService {
           Annotation tokenann = tokenanns.get(i);
           if (tmp.length() > 0)
             tmp = tmp + " ";
-          tmp = tmp + text.substring(tokenann.getStart().intValue(), tokenann.getEnd().intValue());
+          tmp = tmp + text.substring(tokenann.getStart().intValue(), tokenann.getEnd().intValue())
+                  .replaceAll("\\W", "");
         }
         set.add(tmp);
       }

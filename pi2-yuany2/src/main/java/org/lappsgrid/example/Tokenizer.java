@@ -112,8 +112,8 @@ public class Tokenizer implements ProcessingService {
 
     // Step #4: Create a new View
     View view = container.newView();
-    List<View> views = container.getViews();
-    List<Annotation> annotations = views.get(0).getAnnotations(); // annotations of the 1st view
+    List<Annotation> annotations = container.getView(0).getAnnotations(); // annotations of the 1st
+                                                                          // view
     String text = container.getText();
 
     int id = 0;
@@ -129,10 +129,12 @@ public class Tokenizer implements ProcessingService {
           return new Data<String>(Uri.ERROR, "Unable to match word: " + word).asJson();
         }
         int end = start + word.length();
-        Annotation a = view.newAnnotation((isAnswer ? "qtok" : "atok") + id, Uri.TOKEN, start, end);
+        Annotation a = view.newAnnotation((isAnswer ? "atok" : "qtok") + id, Uri.TOKEN, start, end);
         a.addFeature(Features.Token.WORD, word);
         a.addFeature(Stats.STATS1, answerId + ""); // add feature indicating which answer/question
                                                    // it's in
+        a.addFeature(Stats.NAME, this.getClass().getName());
+        a.addFeature(Stats.CONFSCORE, "1");
         id++;
       }
     }

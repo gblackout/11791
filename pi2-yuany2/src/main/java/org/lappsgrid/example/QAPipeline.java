@@ -19,9 +19,26 @@ import org.lappsgrid.serialization.lif.View;
 
 import com.fasterxml.jackson.core.sym.Name;
 
+/**
+ * defines how to pipeline webservices with implmented in- and output methods
+ * 
+ * @author yuany
+ *
+ */
 public class QAPipeline extends Pipeline {
 
+  /**
+   * init by indicating the length of the pipeline
+   * 
+   * @param n
+   *          length of the pipeline
+   */
+  public QAPipeline(int n) {
+    super(n);
+  }
+
   @Override
+  public
   /**
    * Read a file path and return the first line of text in that file
    * 
@@ -46,7 +63,7 @@ public class QAPipeline extends Pipeline {
   }
 
   @Override
-  void writeOutput(String filePath, String outputJson) {
+  public void writeOutput(String filePath, String outputJson) {
     try {
       PrintWriter writer = new PrintWriter(filePath);
 
@@ -62,19 +79,19 @@ public class QAPipeline extends Pipeline {
       }
 
       container = new Container((Map) data.getPayload());
-      View qaView = container.getView(0);
+      View qaView = container.getView(4); // get the last view
       List<Annotation> anns = qaView.getAnnotations();
-      
+
       // print Precision@N
       writer.println(anns.get(anns.size() - 1).getFeature(Stats.STATS2));
-      
+
       // print answer and score
       for (int i = 0; i < anns.size() - 1; i++) {
         Annotation ann = anns.get(i);
         // make name from a0 -> A1
         String name = ann.getId().substring(0, 1).toUpperCase()
-                + Integer.parseInt(ann.getId().substring(1, 2)) + 1;
-        writer.println(name+" "+ann.getFeature(Stats.STATS2));
+                + Integer.parseInt(ann.getId().substring(1, 2));
+        writer.println(name + " " + ann.getFeature(Stats.STATS2));
       }
 
       writer.close();
@@ -84,7 +101,7 @@ public class QAPipeline extends Pipeline {
   }
 
   @Override
-  void runPipeline() {
+  public void runPipeline() {
 
     String stageInput = getPipelineInput();
     String intermediateOutput = "";
@@ -95,28 +112,6 @@ public class QAPipeline extends Pipeline {
     }
 
     setOutput(intermediateOutput);
-  }
-  
-  public static void main(String[] args) {
-    
-    
-    // TODO Every annotation must record the following: (1) the name of a component that produces the annotation, and (2) the component's confidence score assigned to the annotation.
-    // TODO Main.java
-    // TODO input/output directory? file?
-    int ngrams = Integer.parseInt(args[0]);
-    String inputPath = args[1];
-    String outputPath = args[2];
-
-    QAPipeline pipe = new QAPipeline();
-
-    pipe.setPipelineInput(pipe.readInput(inputPath));
-    pipe.addService(new Preprocessor());
-    pipe.addService(new Tokenizer());
-    pipe.addService(new NGramMaker(ngrams));
-    pipe.addService(new Scorer(ngrams));
-    pipe.addService(new Evaluator());
-
-    pipe.writeOutput(outputPath, pipe.getOutput());
   }
 
 }

@@ -1,8 +1,5 @@
 package org.lappsgrid.example;
 
-import org.apache.axis.transport.jms.InvokeTimeoutException;
-import org.codehaus.groovy.classgen.ReturnAdder;
-import org.codehaus.groovy.transform.PackageScopeASTTransformation;
 import org.lappsgrid.api.ProcessingService;
 import static org.lappsgrid.discriminator.Discriminators.Uri;
 import org.lappsgrid.serialization.Data;
@@ -13,17 +10,11 @@ import org.lappsgrid.serialization.lif.Container;
 import org.lappsgrid.serialization.lif.View;
 import org.lappsgrid.vocabulary.Features;
 
-import ch.qos.logback.core.subst.Token;
-import jp.go.nict.langrid.commons.transformer.ArrayToArrayTransformer;
-
 // additional API for metadata
 import org.lappsgrid.metadata.IOSpecification;
 import org.lappsgrid.metadata.ServiceMetadata;
 
-import java.io.FileNotFoundException;
-import java.io.FileReader;
 import java.util.ArrayList;
-import java.util.Scanner;
 
 /**
  * First step in PI2 pipeline: preprocess the raw text into question/answer fields with their
@@ -120,27 +111,18 @@ public class Preprocessor implements ProcessingService {
     }
 
     View view = container.newView();
-    String filepath = container.getText(); // read the filepath
-    Scanner scanner;
-    String line=null;
-    
-    try {
-      scanner = new Scanner(new FileReader(filepath));
-      if (scanner.hasNext()) { // only read one line
-        line = scanner.nextLine();        
-      }
-    } catch (FileNotFoundException e) {
-      e.printStackTrace();
-    }
-    
-    ArrayList<ArrayList<Integer>> triples = find_triples(line);
-    
+    String line = container.getText(); // read the filepath
+
+    ArrayList<ArrayList<Integer>> triples = findTriples(line);
+
     if (triples != null && triples.size() > 1) {
       int id = 0;
       for (ArrayList<Integer> triple : triples) {
         Annotation a = view.newAnnotation(id == 0 ? "q" : "a" + id, Uri.SENTENCE, triple.get(0),
                 triple.get(1));
         a.addFeature(Stats.STATS1, triple.get(2) + "");
+        a.addFeature(Stats.NAME, this.getClass().getName());
+        a.addFeature(Stats.CONFSCORE, "1");
         id++;
       }
 
@@ -148,7 +130,7 @@ public class Preprocessor implements ProcessingService {
 
     view.addContains(Uri.SENTENCE, this.getClass().getName(), "qa_sentences");
     data = new DataContainer(container);
-    
+
     return data.asPrettyJson();
   }
 
@@ -156,23 +138,25 @@ public class Preprocessor implements ProcessingService {
    * scan through line and create triples <start, end, isCorrect> for question and each; answer
    * (question appears at the first and isCorrect field is left empty)
    * 
-   * @param line input string
+   * @param line
+   *          input string
    * @return the list of the triples found
    */
-  private ArrayList<ArrayList<Integer>> find_triples(String line) {
-    
-    if (line == null) return null;
-    
-    ArrayList<ArrayList<Integer>> triples = new ArrayList<ArrayList<Integer>>();    
+  private ArrayList<ArrayList<Integer>> findTriples(String line) {
+
+    if (line == null)
+      return null;
+
+    ArrayList<ArrayList<Integer>> triples = new ArrayList<ArrayList<Integer>>();
     int ptr = 0;
     int len = line.length();
     ArrayList<Integer> triple = new ArrayList<>();
 
     assert line.substring(0, 1).equals("Q");
     ptr += 1; // move to first char in Q
-    triple.add(ptr); // add start
-    while (!line.substring(ptr + 1, next_token(line, ptr)).matches("A\\d")) {
-      ptr = next_token(line, ptr);
+    triple.add(ptr + 1); // add start
+    while (!line.substring(ptr + 1, nextToken(line, ptr)).matches("A\\d")) {
+      ptr = nextToken(line, ptr);
     }
     triple.add(ptr); // add end
     triple.add(-1); // placeholder
@@ -181,12 +165,13 @@ public class Preprocessor implements ProcessingService {
     // now ptr points to the space before A1
     while (ptr < len) {
       triple = new ArrayList<>();
-      ptr = next_token(line, ptr);
+      ptr = nextToken(line, ptr);
+      int isCorrect = Integer.parseInt(line.substring(ptr + 1, nextToken(line, ptr)));
+      ptr = nextToken(line, ptr);
       triple.add(ptr + 1);
-      int isCorrect = Integer.parseInt(line.substring(ptr + 1, next_token(line, ptr)));
       while (!(ptr + 1 >= line.length())
-              && !line.substring(ptr + 1, next_token(line, ptr)).matches("A\\d")) {
-        ptr = next_token(line, ptr);
+              && !line.substring(ptr + 1, nextToken(line, ptr)).matches("A\\d")) {
+        ptr = nextToken(line, ptr);
       }
       triple.add(ptr);
       triple.add(isCorrect);
@@ -196,7 +181,16 @@ public class Preprocessor implements ProcessingService {
     return triples;
   }
 
-  private int next_token(String line, int ptr) {
+  /**
+   * find the ptr at the end of the next token
+   * 
+   * @param line
+   *          the full text string
+   * @param ptr
+   *          the start index
+   * @return the ptr at the end of the next token
+   */
+  private int nextToken(String line, int ptr) {
 
     if (ptr + 1 == line.length())
       return ptr + 1;
@@ -218,7 +212,8 @@ public class Preprocessor implements ProcessingService {
 
   /**
    * A class extends the Features class in LAPPS, which is used to store various value such as score
-   * and whether it is correct answer
+   * and whether it is correct answer. Here the last two are used to record the name of the
+   * component generating the annotation and the confidence score of generating it
    * 
    * @author yuany
    *
@@ -227,5 +222,9 @@ public class Preprocessor implements ProcessingService {
     public static final String STATS1 = "pi2stats1";
 
     public static final String STATS2 = "pi2stats2";
+
+    public static final String NAME = "pi2stats3";
+
+    public static final String CONFSCORE = "pi2stats4";
   }
 }

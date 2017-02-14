@@ -114,8 +114,8 @@ public class NGramMaker implements ProcessingService {
 
     // Step #4: Create a new View
     View ngramView = container.newView();
-    List<View> views = container.getViews();
-    List<Annotation> annotations = views.get(1).getAnnotations(); // annotations of the 2nd view
+    List<Annotation> annotations = container.getView(1).getAnnotations(); // annotations of the 2nd
+                                                                          // view
     int id = 0;
     int length = annotations.size();
     for (int i = 1; i < this.ngrams + 1; i++) {
@@ -131,6 +131,8 @@ public class NGramMaker implements ProcessingService {
           // add feature indicating the answer/question id: -1 for q, and 0-n for a
           ann.addFeature(Stats.STATS1, head.getFeature(Stats.STATS1));
           ann.addFeature(Stats.STATS2, i + ""); // add feature indicating which gram it is
+          ann.addFeature(Stats.NAME, this.getClass().getName());
+          ann.addFeature(Stats.CONFSCORE, "1");
           id++;
         }
       }

@@ -111,7 +111,7 @@ public class Evaluator implements ProcessingService {
       return new Data<String>(Uri.ERROR, message).asJson();
     }
 
-    View qaView = container.getView(0);
+    View qaView = container.getView(3);
     int N = 0;
     int n = 0;
     for (Annotation ann : qaView.getAnnotations()) {
@@ -132,9 +132,13 @@ public class Evaluator implements ProcessingService {
     // here we store precision@N in stats2 feature
     for (int i = 0; i < N; i++) {
       Annotation ann = annotations.get(i);
+      ann.addFeature(Stats.NAME, this.getClass().getName());
+      ann.addFeature(Stats.CONFSCORE, "1");
       n = ann.getFeature(Stats.STATS1).equals("1") ? n + 1 : n;
     }
     annotations.get(annotations.size() - 1).addFeature(Stats.STATS2, (((double) n) / N) + "");
+    // a hack for in-place modification (which is not working)
+    container.addView(qaView);
 
     data = new DataContainer(container);
     // Step #8: Serialize the data object and return the JSON.
